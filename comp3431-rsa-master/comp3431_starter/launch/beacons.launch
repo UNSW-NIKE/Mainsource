@@ -1,0 +1,13 @@
+<!-- Launch just the timothyw test node -->
+<launch >
+    <node pkg="comp3431_starter" type="comp3431_starter_beacons" name="comp3431_starter_beacons" output="screen">
+        <rosparam>
+            beacons: [
+                { id: 0, top: pink, bottom: green },
+                { id: 1, top: blue, bottom: pink },
+                { id: 2, top: pink, bottom: yellow },
+                { id: 3, top: yellow, bottom: pink }
+            ]
+        </rosparam>
+    </node>
+</launch>
