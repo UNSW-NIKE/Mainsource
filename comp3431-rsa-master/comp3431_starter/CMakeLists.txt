@@ -143,7 +143,7 @@ target_link_libraries(comp3431_starter_wallfollow
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 # install(PROGRAMS
-#   scripts/my_python_script
+#   scripts/my_python_script scripts/stop_publisher.py
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
