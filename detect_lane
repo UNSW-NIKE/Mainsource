@@ -146,7 +146,7 @@ class DetectLane():
         # find White and Yellow Lanes
         white_fraction, cv_white_lane = self.maskWhiteLane(cv_image)
         yellow_fraction, cv_yellow_lane = self.maskYellowLane(cv_image)
-
+	print(yellow_fraction,white_fraction)
         try:
             if yellow_fraction > 3000:
                 self.left_fitx, self.left_fit = self.fit_from_lines(self.left_fit, cv_yellow_lane)
@@ -474,7 +474,7 @@ class DetectLane():
             if self.is_center_x_exist == True:
                 # publishes lane center
                 msg_desired_center = Float64()
-                msg_desired_center.data = centerx.item(350)
+                msg_desired_center.data = centerx.item(140)
                 self.pub_lane.publish(msg_desired_center)
 
             self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(final, "jpg"))
