@@ -54,11 +54,11 @@ class DetectLane():
 
         if self.sub_image_type == "compressed":
             # subscribes compressed image
-            self.sub_image_original = rospy.Subscriber('/camera/rgb/image_raw/compressed', CompressedImage, self.cbFindLane, queue_size = 1)
+            self.sub_image_original = rospy.Subscriber('/camera/image/compressed', CompressedImage, self.cbFindLane, queue_size = 1)
             #print(1)#TEST
         elif self.sub_image_type == "raw":
             # subscribes raw image
-            self.sub_image_original = rospy.Subscriber('/camera/rgb/image_raw', Image, self.cbFindLane, queue_size = 1)
+            self.sub_image_original = rospy.Subscriber('camera/image', Image, self.cbFindLane, queue_size = 1)
             #print(0)#TEST
         if self.pub_image_type == "compressed":
             # publishes lane image in compressed type 
@@ -66,7 +66,7 @@ class DetectLane():
             #print("COMPRESS")
         elif self.pub_image_type == "raw":
             # publishes lane image in raw type
-            self.pub_image_lane = rospy.Publisher('/detect/image_output', Image, queue_size = 1)
+            self.pub_image_lane = rospy.Publisher('/detect/image_lane', Image, queue_size = 1)
             
             #print("RAW")
         if self.is_calibration_mode == True:
@@ -142,8 +142,8 @@ class DetectLane():
     def processimg(self,img):
         cs = img.shape
         #index = cs[0]/2+20 #<--FOR ONSITE
-        index = cs[0]/2 #<--FOR GAZEBO
-        #index = 0
+        #index = cs[0]/2 #<--FOR GAZEBO
+        index = 0
         half = img[int(index):,:,:]
         gray = cv2.cvtColor(half,cv2.COLOR_BGR2GRAY)
 
@@ -232,6 +232,37 @@ class DetectLane():
         copy[int(index):,:,:] = half
         return copy
 
+    def birdview(self,image):
+        width = image.shape[1]
+        print(width)
+        height = image.shape[0]
+        # targeted rectangle on original image which needs to be transformed
+        tl = [107, 130]
+        tr = [178, 130]
+        br = [260,177]
+        bl = [10, 177]
+
+        corner_points_array = np.float32([tl,tr,br,bl])
+
+        # original image dimensions
+        
+        
+
+        # Create an array with the parameters (the dimensions) required to build the matrix
+        imgTl = [0,0]
+        imgTr = [width,0]
+        imgBr = [width,height]
+        imgBl = [0,height]
+        img_params = np.float32([imgTl,imgTr,imgBr,imgBl])
+
+        # Compute and return the transformation matrix
+        matrix = cv2.getPerspectiveTransform(corner_points_array,img_params)
+        img_transformed = cv2.warpPerspective(image,matrix,(width,height))
+
+        #cv2.imshow("IMgRAY",img_transformed)
+        #cv2.waitKey()
+        #cv2.destroyAllWindows()
+        return img_transformed
     def cbFindLane(self, image_msg):
         # TODO: mov_avg error
         #print("start")
@@ -243,7 +274,7 @@ class DetectLane():
             return
         else:
             self.counter = 1
-
+        #print("start")
         if self.sub_image_type == "compressed":
             #converting compressed image to opencv image
             np_arr = np.fromstring(image_msg.data, np.uint8)
@@ -257,19 +288,21 @@ class DetectLane():
 
         #return #TEST
         #print(cv_image.shape)
-        half_img = self.processimg(cv_image)
+        #half_img = self.processimg(cv_image) ####NEED THIS
         #print("cv_image is processed")
 	'''if half_img is None:
 	    print("No lines detected")
 	    return''' 
+        #cv2.imshow("BIRD",cv_image)
+        #cv2.waitKey()
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(half_img, "bgr8"))
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(half_img, "jpg"))
-        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(half_img, "bgr8")) #<--TEST IN GAZEBO
+        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(self.birdview(cv_image),"bgr8")) #<--TEST IN GAZEBO
         #return #test in gazebo
         #print("image is PUBLISHED")
-        cv_image = half_img
+        #cv_image = half_img      ##############NEED THIS
         #print(cv_image.shape)
-        #return
+        return
 
         # find White and Yellow Lanes
         white_fraction, cv_white_lane = self.maskWhiteLane(cv_image)
@@ -293,7 +326,7 @@ class DetectLane():
                 self.right_fitx, self.right_fit = self.sliding_windown(cv_white_lane, 'right')
                 self.mov_avg_right = np.array([self.right_fit])
 
-        print(self.left_fitx)
+        #print(self.left_fitx)
         MOV_AVG_LENGTH = 5
         
         self.left_fit = np.array([np.mean(self.mov_avg_left[::-1][:, 0][0:MOV_AVG_LENGTH]),
