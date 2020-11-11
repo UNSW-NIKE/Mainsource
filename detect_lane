@@ -237,10 +237,10 @@ class DetectLane():
         print(width)
         height = image.shape[0]
         # targeted rectangle on original image which needs to be transformed
-        tl = [107, 130]
-        tr = [178, 130]
-        br = [260,177]
-        bl = [10, 177]
+        tl = [105, 134]
+        tr = [185, 134]
+        br = [259,178]
+        bl = [5, 178]
 
         corner_points_array = np.float32([tl,tr,br,bl])
 
@@ -263,6 +263,49 @@ class DetectLane():
         #cv2.waitKey()
         #cv2.destroyAllWindows()
         return img_transformed
+
+    def extract_white(self,pic):
+        ''''method1：使用inRange方法，拼接mask0,mask1'''
+        #img2 = np.fromfile(pic, dtype=np.uint8)
+        img = pic.copy()
+        img_hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+        rows, cols, channels = img.shape
+
+        # 区间1
+        lower_red = np.array([0, 0, 155])
+        upper_red = np.array([180, 30, 255])
+        mask = cv2.inRange(img_hsv,lower_red,upper_red)
+        # cv2.imshow('mask',mask)
+        # 保存图片
+        #cv2.imencode('.png', mask )[1].tofile(pic)
+        kernel = np.ones((3,3),np.uint8)
+        opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+        # inverse = np.ones(closing.shape,dtype='uint8')*255
+        # inverse -= closing
+        return closing
+
+    def extract_left_lane(self,pic,image):
+        height,width=pic.shape
+        leftLane = np.zeros(pic.shape,dtype='uint8')
+        leftLane[height//2+10:,:width//2] = 1
+        leftLane *= pic
+        _,contours,_ = cv2.findContours(leftLane,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        boundingBoxes = [(cv2.boundingRect(cnt),cnt)for cnt in contours]
+        boundingBoxes = sorted(boundingBoxes,key=lambda x:x[0][1]+x[0][3],reverse=True)
+        leftLane = np.ones(pic.shape,dtype='uint8')*255
+        cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,0,0),-1)
+
+        copy = image.copy()
+        for i in range(image.shape[0]):
+            for j in range(image.shape[1]):
+                if leftLane[i][j] == 0 :
+                    copy[i][j] = [0,255,255]
+                else:
+                    copy[i][j] = [255,255,255]
+        
+        return copy
+
     def cbFindLane(self, image_msg):
         # TODO: mov_avg error
         #print("start")
@@ -297,7 +340,13 @@ class DetectLane():
         #cv2.waitKey()
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(half_img, "bgr8"))
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(half_img, "jpg"))
-        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(self.birdview(cv_image),"bgr8")) #<--TEST IN GAZEBO
+
+        pic = self.extract_left_lane(self.extract_white(cv_image),cv_image)
+        #pic = self.birdview(pic)
+        #cv2.imshow("input",cv_image)
+        #cv2.waitKey()
+        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(self.birdview(pic),"bgr8")) #<--TEST IN GAZEBO
+
         #return #test in gazebo
         #print("image is PUBLISHED")
         #cv_image = half_img      ##############NEED THIS
