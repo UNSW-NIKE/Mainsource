@@ -23,11 +23,12 @@ import rospy
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
-from std_msgs.msg import UInt8, Float64
+from std_msgs.msg import UInt8, Float64, String
 from sensor_msgs.msg import Image, CompressedImage
 from dynamic_reconfigure.server import Server
 from turtlebot3_autorace_detect.cfg import DetectLaneParamsConfig
 import math
+from geometry_msgs.msg import Twist
 
 class DetectLane():
     def __init__(self):
@@ -86,7 +87,7 @@ class DetectLane():
  
         # subscribes state : white line reliability
         self.pub_white_line_reliability = rospy.Publisher('/detect/white_line_reliability', UInt8, queue_size=1)
- 
+
         self.cvBridge = CvBridge()
 
         self.counter = 1
@@ -96,6 +97,13 @@ class DetectLane():
 
         self.reliability_white_line = 100
         self.reliability_yellow_line = 100
+        self.commandSub = rospy.Subscriber("cmd", String, self.getsignal, queue_size = 1)
+        self.twistPub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+        self.max_vel = 0.1 ####TUNE THIS PLZ!
+        self.max_turn = 1 #####TUNE THIS PLZ!
+        self.stop = False ##it was set To be false when true speed would be 0
+        self.min_speed = 0.04 ####NEED TURN THIS
+        
 
     def cbGetDetectLaneParam(self, config, level):
         rospy.loginfo("[Detect Lane] Detect Lane Calibration Parameter reconfigured to")
@@ -182,7 +190,7 @@ class DetectLane():
         
         return copy
 
-        edges = cv2.Canny(th_img,100,200)
+        '''edges = cv2.Canny(th_img,100,200)
         lines = cv2.HoughLines(edges,1,np.pi/180,10,1,50,50)
         if lines is None:
 	        return None
@@ -209,8 +217,8 @@ class DetectLane():
         #check the two slopes with smallest index and see if there are any "right" and color the first left lane
         for s in small_index:
             slope = (line_ps[s][3]-line_ps[s][1])/(line_ps[s][2]-line_ps[s][0])
-            '''if math.fabs(slope) < 0.1: # <-- Only consider extreme slope
-                continue'''
+            if math.fabs(slope) < 0.1: # <-- Only consider extreme slope
+                continue
             if slope <0 and not colored:#left
                 colored = True
                 
@@ -220,7 +228,7 @@ class DetectLane():
         #print(exist_right)
         print(colored)
         copy = img.copy()
-        '''if exist_right:
+        if exist_right:
             copy[int(index):,:,:] = half
         else:
             for i in range(th_img.shape[0]):
@@ -228,10 +236,9 @@ class DetectLane():
                     if th_img[i][j] != 0 :
                         copy[int(index)+i][j] = [0,255,255]
             print("curve")
-'''
-        copy[int(index):,:,:] = half
-        return copy
 
+        copy[int(index):,:,:] = half
+        return copy'''
     def birdview(self,image):
         width = image.shape[1]
         #print(width)
@@ -307,7 +314,7 @@ class DetectLane():
                 box = cv2.boxPoints(minRect)
                 box = np.int0(box)
                 reserveCnt = [cnt,box]
-		break
+		        #break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         copy = image.copy()
@@ -342,7 +349,7 @@ class DetectLane():
                 cv2.line(pic,(int(x1),int(y1)),(int(x2),int(y2)),(0,255,0),3)
         if len(slopes) == 0:
             print(0)
-            return 0,0
+            return 0 
         mean = sum(slopes)/len(slopes)
         #print(mean)
         actan = math.degrees(math.atan(mean))
@@ -352,10 +359,27 @@ class DetectLane():
         else:
             sign = 1
         deg = 90 - math.fabs(actan)
-        print(deg*sign)
+        #print(deg*sign)
 
         return deg*sign
         
+    def getsignal(self,cmd):
+        if cmd == "stop":
+            rospy.loginfo("stop. cmd_vel will be 0")
+
+            twist = Twist()
+            twist.linear.x = 0
+            twist.linear.y = 0
+            twist.linear.z = 0
+            twist.angular.x = 0
+            twist.angular.y = 0
+            twist.angular.z = 0
+            self.pub_cmd_vel.publish(twist)
+            self.stop = True
+        elif cmd == "start":
+            rospy.loginfo("restart. the bot would run again")
+            self.stop = False    
+
 
     def cbFindLane(self, image_msg):
         # TODO: mov_avg error
@@ -399,10 +423,30 @@ class DetectLane():
         else:
             pass # 
         '''if slope is None:
-            #U CAN SEE ANY LiNES SO tURN LEFT A LITTlE BIT HERE
+            #U CANT SEE ANY LiNES SO tURN LEFT A LITTlE BIT HERE
             pass
         else:'''
         #print(ratio)
+        if ratio == 90:
+            #error ratio should not be 90
+            return
+        
+        ##publish velocity here
+        if not self.stop:
+            angular = self.max_turn * ratio / 90
+            velocity = self.max_vel * (1 - math.fabs(angular) / self.max_turn)
+            twist = Twist()
+            twist.linear.x = max(velocity, self.min_speed) #SET 0.04 TO BE MIN_SPEED
+            twist.linear.y = 0
+            twist.linear.z = 0
+            twist.angular.x = 0
+            twist.angular.y = 0
+            twist.angular.z = angular    #-max(angular_z, -2.0) if angular_z < 0 else -min(angular_z, 2.0)
+            self.twistPub.publish(twist)
+            print("linear: ","{:.3f}".format(twist.linear.x),"  angular : " , "{:.2f}".format(twist.angular.z))
+
+
+
 
         #pic = self.birdview(pic)
         #cv2.imshow("input",cv_image)
