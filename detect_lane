@@ -288,9 +288,36 @@ class DetectLane():
         kernel = np.ones((3,3),np.uint8)
         opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+        # 区间1
+        lower_red = np.array([150, 31, 137])
+        upper_red = np.array([171, 100, 245])
+        mask0 = cv2.inRange(img_hsv,lower_red,upper_red)
+        opening0 = cv2.morphologyEx(mask0, cv2.MORPH_OPEN, kernel)
+        closing1 = cv2.morphologyEx(opening0, cv2.MORPH_CLOSE, kernel)
+        closing+=closing1
         # inverse = np.ones(closing.shape,dtype='uint8')*255
         # inverse -= closing
         return closing
+
+    def detect_intersection(self,cnt,shape):
+        minRect = cv2.minAreaRect(cnt)
+        box = cv2.boxPoints(minRect)
+        box = np.int0(box)
+        # cv2.imshow('pic',pic)
+        # cv2.waitKey()
+        # leftLane = np.ones(shape,dtype='uint8')*255
+        # cv2.drawContours(leftLane,[box],0,(0,0,0),2)
+        # cv2.imshow('box',leftLane)
+        # cv2.waitKey()
+        # print(box)
+        LaneOrInterWidth = 20
+        # the lane is flat, the length is longer than min width and the location is down
+        if box[1][1]-box[2][1]<10 and box[2][0]-box[1][0]>LaneOrInterWidth and box[1][1]>170:
+            return 'inter',box
+        elif box[2][0]-box[1][0]>LaneOrInterWidth:
+            return 'lane',box
+        else:
+            return 'continue',box
 
     def extract_left_lane(self,pic,image):
         height,width=pic.shape
@@ -301,28 +328,32 @@ class DetectLane():
         boundingBoxes = [(cv2.boundingRect(cnt),cv2.contourArea(cnt),cnt)for cnt in contours]
         boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[0][1]+x[0][3],x[1]),reverse=True)
         # reduce noise
+        copy = image.copy()
         reserveCnt = []
         for rect,area,cnt in boundingBoxes:
-            if len(reserveCnt)>0:
-                break
-            elif area<100:
+            # if len(reserveCnt)>0:
+            #     break
+            if area<200:
                 continue
             else:
                 # self.area.append(area)
                 # print('minArea',min(self.area))
-                minRect = cv2.minAreaRect(cnt)
-                box = cv2.boxPoints(minRect)
-                box = np.int0(box)
-                reserveCnt = [cnt,box]
-		        #break
+                interFlg,box = self.detect_intersection(cnt,pic.shape)
+                if interFlg=='inter':
+                    cv2.drawContours(copy,[cnt],-1,(0,255,0),-1)
+                elif interFlg=='continue':
+                    continue
+                elif len(reserveCnt)<1:
+                    reserveCnt = [cnt,box]
+                    # break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
-        copy = image.copy()
         if len(reserveCnt)>0:
             cv2.drawContours(leftLane,[reserveCnt[0]],-1,(0,255,255),-1)
             cv2.drawContours(copy,[reserveCnt[0]],-1,(0,255,255),-1)
         
         return copy,leftLane
+
     def calculate_slope(self,img,pic):
         edges = cv2.Canny(img,100,200)
         lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength=45,maxLineGap=20)
