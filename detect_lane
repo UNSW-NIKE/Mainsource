@@ -234,13 +234,13 @@ class DetectLane():
 
     def birdview(self,image):
         width = image.shape[1]
-        print(width)
+        #print(width)
         height = image.shape[0]
         # targeted rectangle on original image which needs to be transformed
-        tl = [105, 134]
-        tr = [185, 134]
-        br = [259,178]
-        bl = [5, 178]
+        tl = [101, 134]
+        tr = [206, 134]
+        br = [281,171]
+        bl = [3, 171]
 
         corner_points_array = np.float32([tl,tr,br,bl])
 
@@ -297,14 +297,56 @@ class DetectLane():
         cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,0,0),-1)
 
         copy = image.copy()
+        cal_copy = image.copy()
         for i in range(image.shape[0]):
             for j in range(image.shape[1]):
                 if leftLane[i][j] == 0 :
                     copy[i][j] = [0,255,255]
+                    cal_copy[i][j]=[0,255,255]
                 else:
-                    copy[i][j] = [255,255,255]
+                    cal_copy[i][j] = [255,255,255]
         
-        return copy
+        return copy,cal_copy
+    def calculate_slope(self,img,pic):
+        edges = cv2.Canny(img,100,200)
+        lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength=45,maxLineGap=20)
+        if lines is None:
+	        return None
+        slopes = []
+        #print(lines)
+        for i in range(len(lines)):
+            if i > 5:
+                break
+            for x1,y1,x2,y2 in lines[i]:
+                '''a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a*rho
+                y0 = b*rho
+                x1 = x0 + 1000*(-b)
+                y1 = y0 + 1000*(a)
+                x2 = x0 - 1000*(-b)
+                y2 = y0 - 1000*(a)
+'''             
+                if x1 != x2:
+                    slope = (y2-y1)/(x2-x1)
+                    slopes.append(slope)
+                cv2.line(pic,(int(x1),int(y1)),(int(x2),int(y2)),(0,255,0),3)
+        if len(slopes) == 0:
+            print(0)
+            return 0,0
+        mean = sum(slopes)/len(slopes)
+        #print(mean)
+        actan = math.degrees(math.atan(mean))
+        sign = 0
+        if actan < 0:
+            sign= -1
+        else:
+            sign = 1
+        deg = 90 - math.fabs(actan)
+        print(deg*sign)
+
+        return deg*sign
+        
 
     def cbFindLane(self, image_msg):
         # TODO: mov_avg error
@@ -341,11 +383,22 @@ class DetectLane():
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(half_img, "bgr8"))
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(half_img, "jpg"))
 
-        pic = self.extract_left_lane(self.extract_white(cv_image),cv_image)
+        pic,cal = self.extract_left_lane(self.extract_white(cv_image),cv_image)
+        pic = self.birdview(pic)
+        if cal is not None and pic is not None:
+            ratio= self.calculate_slope(self.birdview(cal),pic)
+        else:
+            pass # 
+        '''if slope is None:
+            #U CAN SEE ANY LiNES SO tURN LEFT A LITTlE BIT HERE
+            pass
+        else:'''
+        #print(ratio)
+
         #pic = self.birdview(pic)
         #cv2.imshow("input",cv_image)
         #cv2.waitKey()
-        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(self.birdview(pic),"bgr8")) #<--TEST IN GAZEBO
+        self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(pic,"bgr8")) #<--TEST IN GAZEBO
 
         #return #test in gazebo
         #print("image is PUBLISHED")
