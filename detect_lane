@@ -294,19 +294,11 @@ class DetectLane():
         boundingBoxes = [(cv2.boundingRect(cnt),cnt)for cnt in contours]
         boundingBoxes = sorted(boundingBoxes,key=lambda x:x[0][1]+x[0][3],reverse=True)
         leftLane = np.ones(pic.shape,dtype='uint8')*255
-        cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,0,0),-1)
-
+        cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,255,255),-1)
         copy = image.copy()
-        cal_copy = image.copy()
-        for i in range(image.shape[0]):
-            for j in range(image.shape[1]):
-                if leftLane[i][j] == 0 :
-                    copy[i][j] = [0,255,255]
-                    cal_copy[i][j]=[0,255,255]
-                else:
-                    cal_copy[i][j] = [255,255,255]
+        cv2.drawContours(copy,[boundingBoxes[0][1]],-1,(0,255,255),-1)
         
-        return copy,cal_copy
+        return copy,leftLane
     def calculate_slope(self,img,pic):
         edges = cv2.Canny(img,100,200)
         lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength=45,maxLineGap=20)
