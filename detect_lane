@@ -307,6 +307,7 @@ class DetectLane():
                 box = cv2.boxPoints(minRect)
                 box = np.int0(box)
                 reserveCnt = [cnt,box]
+		break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         copy = image.copy()
