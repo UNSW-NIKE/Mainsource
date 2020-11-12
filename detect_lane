@@ -291,13 +291,28 @@ class DetectLane():
         leftLane[height//2+10:,:width//2] = 1
         leftLane *= pic
         _,contours,_ = cv2.findContours(leftLane,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-        boundingBoxes = [(cv2.boundingRect(cnt),cnt)for cnt in contours]
-        boundingBoxes = sorted(boundingBoxes,key=lambda x:x[0][1]+x[0][3],reverse=True)
+        boundingBoxes = [(cv2.boundingRect(cnt),cv2.contourArea(cnt),cnt)for cnt in contours]
+        boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[0][1]+x[0][3],x[1]),reverse=True)
+        # reduce noise
+        reserveCnt = []
+        for rect,area,cnt in boundingBoxes:
+            if len(reserveCnt)>0:
+                break
+            elif area<100:
+                continue
+            else:
+                # self.area.append(area)
+                # print('minArea',min(self.area))
+                minRect = cv2.minAreaRect(cnt)
+                box = cv2.boxPoints(minRect)
+                box = np.int0(box)
+                reserveCnt = [cnt,box]
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
-        cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,255,255),-1)
         copy = image.copy()
-        cv2.drawContours(copy,[boundingBoxes[0][1]],-1,(0,255,255),-1)
+        if len(reserveCnt)>0:
+            cv2.drawContours(leftLane,[reserveCnt[0]],-1,(0,255,255),-1)
+            cv2.drawContours(copy,[reserveCnt[0]],-1,(0,255,255),-1)
         
         return copy,leftLane
     def calculate_slope(self,img,pic):
