@@ -294,6 +294,7 @@ class DetectLane():
         boundingBoxes = [(cv2.boundingRect(cnt),cnt)for cnt in contours]
         boundingBoxes = sorted(boundingBoxes,key=lambda x:x[0][1]+x[0][3],reverse=True)
         leftLane = np.ones(pic.shape,dtype='uint8')*255
+        leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         cv2.drawContours(leftLane,[boundingBoxes[0][1]],-1,(0,255,255),-1)
         copy = image.copy()
         cv2.drawContours(copy,[boundingBoxes[0][1]],-1,(0,255,255),-1)
