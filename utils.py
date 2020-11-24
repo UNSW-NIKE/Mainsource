@@ -1,3 +1,4 @@
+#PYTORCH > 1.6, cuda enabled
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
