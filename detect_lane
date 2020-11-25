@@ -82,7 +82,7 @@ class DetectLane():
         
         self.pub_image_intersection = rospy.Publisher('/detect/intersection', Image, queue_size = 1)
         self.pub_lane = rospy.Publisher('/detect/lane', Float64, queue_size = 1)
-
+	self.pub_cmd= rospy.Publisher('/cmd', String, queue_size = 1)
         # subscribes state : yellow line reliability
         self.pub_yellow_line_reliability = rospy.Publisher('/detect/yellow_line_reliability', UInt8, queue_size=1)
  
@@ -522,7 +522,11 @@ class DetectLane():
             cv2.putText(image,"INTERSECTION", (100, 100), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255))
             self.pub_image_intersection.publish(self.cvBridge.cv2_to_imgmsg(image, "bgr8"))
             rospy.loginfo("INTERSECTION")
-        
+	    inter_data = String()
+	    inter_data.data = "inter"
+            cmd_pub.publish(inter_data)
+
+	
         return copy,intersection
 
     def cbFindLane(self, image_msg):
