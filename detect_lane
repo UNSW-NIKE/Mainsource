@@ -365,9 +365,14 @@ class DetectLane():
         # leftLane = np.zeros(pic.shape,dtype='uint8')
         # leftLane[height//2+10:,:width//2] = 1
         leftLane = pic.copy()
+        # test = image.copy()
         _,contours,_ = cv2.findContours(leftLane,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         boundingBoxes = [(cv2.boundingRect(cnt),cv2.contourArea(cnt),cnt)for cnt in contours]
-        boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[0][1]+x[0][3],x[1]),reverse=True)
+        boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[1],x[0][0]+x[0][2],x[0][1]+x[0][3]),reverse=True)
+
+        # cv2.drawContours(test,[boundingBoxes[0][2]],-1,(0,255,255),-1)
+        # cv2.imshow('contours',test)
+        # cv2.waitKey()
         # reduce noise
         copy = image.copy()
         reserveCnt = []
@@ -376,10 +381,11 @@ class DetectLane():
             #     break
             if area<200:
                 continue
-            elif rect[3]<100:
-                continue
+            # elif rect[3]<100:
+            #     continue
             else :
                 reserveCnt = [rect,area,cnt]
+                break
                 # self.area.append(area)
                 # print('minArea',min(self.area))
                 # interFlg,box = self.detect_intersection(cnt,pic.shape)
@@ -524,7 +530,7 @@ class DetectLane():
             rospy.loginfo("INTERSECTION")
 	    inter_data = String()
 	    inter_data.data = "inter"
-            cmd_pub.publish(inter_data)
+            self.pub_cmd.publish(inter_data)
 
 	
         return copy,intersection
@@ -551,7 +557,8 @@ class DetectLane():
         #print(cv_image.shape)
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(cv_image, "jpg"))
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(cv_image, "bgr8"))
-
+        #print(cv_image.shape)
+        
         #return #TEST
         #print(cv_image.shape)
         #half_img = self.processimg(cv_image) ####NEED THIS
@@ -559,7 +566,7 @@ class DetectLane():
         '''if half_img is None:
         print("No lines detected")
         return''' 
-        # cv2.imshow("BIRD",cv_image)
+        #cv2.imshow("BIRD",cv_image)
         # cv2.waitKey()
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_imgmsg(half_img, "bgr8"))
         #self.pub_image_lane.publish(self.cvBridge.cv2_to_compressed_imgmsg(half_img, "jpg"))
@@ -570,12 +577,15 @@ class DetectLane():
         mask = mask0.copy()
         mask[:,width//2:]=0
         cv_image,cal = self.extract_left_lane2(mask,cv_image)
+        # cv2.imshow("leftLane",cv_image)
+        # cv2.imshow("leftLane2",cal)
+        # cv2.waitKey()
         mask = self.extract_white(cv_image)
         mask[:,:width//2]=0
         cv_image[mask>0]=255
         mask0[:,:width//3]=0
         mask0[:,width//3*2:]=0
-        cv_image,cal = self.intersection(mask0,cv_image)
+        #cv_image,cal = self.intersection(mask0,cv_image)
         # cv_image,cal = self.extract_right_lane(mask,cv_image)
         # cv2.imshow("BIRD",cv_image)
         # cv_image[:height//2+20,:,:]=0
@@ -992,13 +1002,13 @@ class DetectLane():
                 cv2.polylines(color_warp_lines, np.int_([pts_center]), isClosed=False, color=(0, 255, 255), thickness=12)
 
             if white_fraction <= 200 and yellow_fraction > 1000:
-                centerx = np.add(self.left_fitx, 320)
+                centerx = np.add(self.left_fitx, 400)#320
                 pts_center = np.array([np.transpose(np.vstack([centerx, ploty]))])
 
                 cv2.polylines(color_warp_lines, np.int_([pts_center]), isClosed=False, color=(0, 255, 255), thickness=12)
 
         elif self.reliability_white_line <= 50 and self.reliability_yellow_line > 50:
-            centerx = np.add(self.left_fitx, 320)
+            centerx = np.add(self.left_fitx, 400)#320
             pts_center = np.array([np.transpose(np.vstack([centerx, ploty]))])
 
             cv2.polylines(color_warp_lines, np.int_([pts_center]), isClosed=False, color=(0, 255, 255), thickness=12)
