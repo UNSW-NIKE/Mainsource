@@ -82,7 +82,7 @@ class DetectLane():
         
         self.pub_image_intersection = rospy.Publisher('/detect/intersection', Image, queue_size = 1)
         self.pub_lane = rospy.Publisher('/detect/lane', Float64, queue_size = 1)
-	self.pub_cmd= rospy.Publisher('/cmd', String, queue_size = 1)
+        self.pub_cmd= rospy.Publisher('/cmd', String, queue_size = 1)
         # subscribes state : yellow line reliability
         self.pub_yellow_line_reliability = rospy.Publisher('/detect/yellow_line_reliability', UInt8, queue_size=1)
  
@@ -105,6 +105,7 @@ class DetectLane():
         self.stop = True ##it was set To be false when true speed would be 0
         self.min_speed = 0.02 ####NEED TURN THIS
         self.frame_count = 0
+        self.turn = False
         
 
     def cbGetDetectLaneParam(self, config, level):
@@ -379,24 +380,33 @@ class DetectLane():
         for rect,area,cnt in boundingBoxes:
             # if len(reserveCnt)>0:
             #     break
-            if area<200:
+            if area<200:# or area > 1000:
                 continue
             # elif rect[3]<100:
             #     continue
             else :
                 reserveCnt = [rect,area,cnt]
+                # approx = cv2.approxPolyDP(cnt, 3, True)
+                hull2 = cv2.convexHull(cnt)
+                # dist = cv2.pointPolygonTest(hull, far, True)
+                hull = cv2.convexHull(cnt, returnPoints=False)
+                defects=cv2.convexityDefects(cnt, hull)
+                max_dist = 0
+                for j in range(defects.shape[0]):
+                    s, e, f, d = defects[j, 0]
+                    far = tuple(cnt[f][0])
+                    # 用蓝色最远点画一个圆圈
+                    # cv2.circle(copy, far, 5, (225, 0, 0), -1)
+                    dist = cv2.pointPolygonTest(hull2, far, True)
+                    # if dist <-0.1 or dist>0.1:
+                    if dist>max_dist:
+                        max_dist = dist
+                # print(max_dist)
+                if max_dist>25:
+                    self.turn = True
+                else:
+                    self.turn=False
                 break
-                # self.area.append(area)
-                # print('minArea',min(self.area))
-                # interFlg,box = self.detect_intersection(cnt,pic.shape)
-                # reserveCnt = [cnt,box]
-                # if interFlg=='inter':
-                #     cv2.drawContours(copy,[cnt],-1,(0,255,0),-1)
-                # elif interFlg=='continue':
-                #     continue
-                # elif len(reserveCnt)<1:
-                #     reserveCnt = [cnt,box]
-                    # break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         if len(reserveCnt)>0:
