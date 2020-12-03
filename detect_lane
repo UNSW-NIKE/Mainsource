@@ -368,7 +368,7 @@ class DetectLane():
         # test = image.copy()
         _,contours,_ = cv2.findContours(leftLane,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         boundingBoxes = [(cv2.boundingRect(cnt),cv2.contourArea(cnt),cnt)for cnt in contours]
-        boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[1],x[0][0]+x[0][2],x[0][1]+x[0][3]),reverse=True)
+        boundingBoxes = sorted(boundingBoxes,key=lambda x:(x[1],-x[0][1]),reverse=True)
 
         # cv2.drawContours(test,[boundingBoxes[0][2]],-1,(0,255,255),-1)
         # cv2.imshow('contours',test)
@@ -575,7 +575,7 @@ class DetectLane():
         height,width = cv_image.shape[0],cv_image.shape[1]
         mask0 = self.extract_white(cv_image)
         mask = mask0.copy()
-        mask[:,width//2:]=0
+        # mask[:,width//2:]=0
         cv_image,cal = self.extract_left_lane2(mask,cv_image)
         # cv2.imshow("leftLane",cv_image)
         # cv2.imshow("leftLane2",cal)
