@@ -105,8 +105,9 @@ class DetectLane():
         self.stop = True ##it was set To be false when true speed would be 0
         self.min_speed = 0.02 ####NEED TURN THIS
         self.frame_count = 0
-        self.turn = False
-        
+        self.turn = 0
+        self.go = 0 
+        self.sleep = False
 
     def cbGetDetectLaneParam(self, config, level):
         rospy.loginfo("[Detect Lane] Detect Lane Calibration Parameter reconfigured to")
@@ -402,10 +403,32 @@ class DetectLane():
                     if dist>max_dist:
                         max_dist = dist
                 # print(max_dist)
-                if max_dist>25:
-                    self.turn = True
+                if not self.sleep:
+                    if max_dist>25:
+                        self.turn += 1
+                        if self.turn >= 4:
+                            twist = Twist()
+                            twist.linear.x = 0.15
+                            twist.angular.z = 0
+                            twist.linear.y = 0
+                            twist.linear.z = 0
+                            twist.angular.x = 0
+                            twist.angular.y = 0
+                            self.pub_cmd_vel.publish(twist)
+                            rospy.sleep(3)
+                            self.sleep = True
+                            self.turn = 0
+                            return 
+                    else: 
+                        self.turn = 0
                 else:
-                    self.turn=False
+                    if max_dist <=25:
+                        self.go += 1
+                        if self.go >=4:
+                            self.go = 0
+                            self.sleep = False
+                    else:
+                        self.go = 0
                 break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
