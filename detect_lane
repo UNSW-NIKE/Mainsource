@@ -382,7 +382,7 @@ class DetectLane():
             #     break
             if area<200:# or area > 1000:
                 continue
-            # elif rect[3]<100:
+            # elif rect[1]+rect[3]<400 or rect[3]<100:
             #     continue
             else :
                 reserveCnt = [rect,area,cnt]
@@ -428,24 +428,16 @@ class DetectLane():
         for rect,area,cnt in boundingBoxes:
             # if len(reserveCnt)>0:
             #     break
-            if area<200:
+            if area<1000:
                 continue
             else:
-                # self.area.append(area)
-                # print('minArea',min(self.area))
-                interFlg,box = self.detect_intersection(cnt,pic.shape)
-                if interFlg=='inter':
-                    cv2.drawContours(copy,[cnt],-1,(0,255,0),-1)
-                elif interFlg=='continue':
-                    continue
-                elif len(reserveCnt)<1:
-                    reserveCnt = [cnt,box]
+                reserveCnt = [cnt]
                     # break
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         if len(reserveCnt)>0:
-            cv2.drawContours(leftLane,[reserveCnt[0]],-1,(0,255,255),-1)
-            cv2.drawContours(copy,[reserveCnt[0]],-1,(0,255,255),-1)
+            cv2.drawContours(leftLane,reserveCnt,-1,(255,255,255),-1)
+            cv2.drawContours(copy,reserveCnt,-1,(255,255,255),-1)
         
         return copy,leftLane
     def calculate_slope(self,img,pic):
@@ -585,16 +577,19 @@ class DetectLane():
         height,width = cv_image.shape[0],cv_image.shape[1]
         mask0 = self.extract_white(cv_image)
         mask = mask0.copy()
-        # mask[:,width//2:]=0
+        # mask[height//4*3:,width//3+50:]=0
         cv_image,cal = self.extract_left_lane2(mask,cv_image)
         # cv2.imshow("leftLane",cv_image)
         # cv2.imshow("leftLane2",cal)
         # cv2.waitKey()
         mask = self.extract_white(cv_image)
-        mask[:,:width//2]=0
-        cv_image[mask>0]=255
-        mask0[:,:width//3]=0
-        mask0[:,width//3*2:]=0
+        cv_image,cal = self.extract_right_lane(mask,cv_image)
+        # mask[:,:width//2]=0
+        # cv_image[mask>0]=255
+        # cv2.imshow("rightLane",cv_image)
+        # cv2.waitKey()
+        # mask0[:,:width//3]=0
+        # mask0[:,width//3*2:]=0
         #cv_image,cal = self.intersection(mask0,cv_image)
         # cv_image,cal = self.extract_right_lane(mask,cv_image)
         # cv2.imshow("BIRD",cv_image)
