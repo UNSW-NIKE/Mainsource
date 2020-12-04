@@ -108,6 +108,7 @@ class DetectLane():
         self.turn = 0
         self.go = 0 
         self.sleep = False
+        
 
     def cbGetDetectLaneParam(self, config, level):
         rospy.loginfo("[Detect Lane] Detect Lane Calibration Parameter reconfigured to")
@@ -378,6 +379,8 @@ class DetectLane():
         # reduce noise
         copy = image.copy()
         reserveCnt = []
+        if len(boundingBoxes)< 1:
+            return copy,leftLane
         for rect,area,cnt in boundingBoxes:
             # if len(reserveCnt)>0:
             #     break
@@ -415,7 +418,7 @@ class DetectLane():
                             twist.angular.x = 0
                             twist.angular.y = 0
                             self.pub_cmd_vel.publish(twist)
-                            rospy.sleep(3)
+                            rospy.sleep(2)
                             self.sleep = True
                             self.turn = 0
                             return 
@@ -451,16 +454,17 @@ class DetectLane():
         for rect,area,cnt in boundingBoxes:
             # if len(reserveCnt)>0:
             #     break
-            if area<1000:
+            if area<2500:
                 continue
             else:
-                reserveCnt = [cnt]
-                    # break
+                reserveCnt.append(cnt)
+                self.white_lane = True
         leftLane = np.ones(pic.shape,dtype='uint8')*255
         leftLane = cv2.cvtColor(leftLane,cv2.COLOR_GRAY2BGR)
         if len(reserveCnt)>0:
             cv2.drawContours(leftLane,reserveCnt,-1,(255,255,255),-1)
             cv2.drawContours(copy,reserveCnt,-1,(255,255,255),-1)
+        else:self.white_lane = False
         
         return copy,leftLane
     def calculate_slope(self,img,pic):
@@ -522,6 +526,8 @@ class DetectLane():
             self.stop = False    
 
     def intersection(self,mask,image):
+        if self.white_lane is False:
+            return
         intersection = mask.copy()
         _,contours,_ = cv2.findContours(intersection,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         # test = np.zeros(image.shape,dtype='uint8')
@@ -535,12 +541,12 @@ class DetectLane():
         for rect,area,cnt in boundingBoxes:
             # if len(reserveCnt)>0:
             #     break
-            print(rect,area)
-            if area<100:
+            # print(rect,area)
+            if area<1000:
                 continue
-            elif rect[2]<60:
+            elif rect[2]<300:
                 continue
-            elif rect[1]+rect[3]<180 or rect[1]<140:
+            elif rect[1]+rect[3]<500 or rect[3]>70:
                 continue
             else :
                 reserveCnt = [cnt]
@@ -611,9 +617,9 @@ class DetectLane():
         # cv_image[mask>0]=255
         # cv2.imshow("rightLane",cv_image)
         # cv2.waitKey()
-        # mask0[:,:width//3]=0
-        # mask0[:,width//3*2:]=0
-        #cv_image,cal = self.intersection(mask0,cv_image)
+        mask0[:,:width//3]=0
+        mask0[:,width//3*2:]=0
+        cv_image,cal = self.intersection(mask0,cv_image)
         # cv_image,cal = self.extract_right_lane(mask,cv_image)
         # cv2.imshow("BIRD",cv_image)
         # cv_image[:height//2+20,:,:]=0
